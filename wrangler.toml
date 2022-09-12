@@ -1,0 +1,4 @@
+name = "webbay"
+main = "src/worker.js"
+compatibility_date = "2022-09-12"
+
