@@ -1,35 +1,28 @@
-import { Router } from 'itty-router';
 import { validate } from '@cfworker/json-schema';
 
-const headers = Object.freeze({
+const OK = 200;
+const NOT_FOUND = 404;
+const NO_CONTENT = 204;
+const BAD_REQUEST = 400;
+
+const BODIES = {
+  204: null,
+  200: '200 OK',
+  404: '404 Not Found',
+  400: 'Request body is missing or params are incorrect',
+};
+
+const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Max-Age': 86400,
-  'Content-Type': 'application/json; charset=UTF-8',
-});
-
-const SOURCE_SCHEMA = {
-  type: 'object',
-  required: ['source'],
-  properties: {
-    source: {
-      type: 'string',
-      enum: ['webshare'],
-    },
-  },
 };
 
-const buildURLSchema = (pattern) => ({
-  type: 'object',
-  required: ['url'],
-  properties: {
-    url: {
-      type: 'string',
-      pattern,
-    },
-  },
-});
+const HEADERS = {
+  ...CORS,
+  'Content-Type': 'application/json; charset=UTF-8',
+};
 
 const R = Object.freeze({
   krakenfiles: 'https?://(?:www.)?krakenfiles.com/view/(?<id>[^/&?]+)',
@@ -50,51 +43,67 @@ const isEmpty = (object) => {
   return true;
 };
 
-const router = new Router();
+const checkPaths = ({ paths }) => {
+  const schema = {
+    type: 'array',
+    prefixItems: [{ enum: ['api'] }, { enum: ['krakenfiles', 'webshare'] }],
+    required: ['api', 'webshare'],
+  };
+  const { valid } = validate(paths, schema);
+  if (valid === false) return NOT_FOUND;
+  return 0;
+};
 
-router
-  .options('/api/:source', () => new Response(null, { status: 204, headers }))
-  .post('/api/:source', async (request) => {
-    const { params } = request;
-    const { valid: paramsValid } = validate(params, SOURCE_SCHEMA);
-    if (paramsValid === false)
-      return new Response(
-        JSON.stringify(
-          { status: 1, text: '404 Not Found' },
-          { status: 404, headers },
-        ),
-      );
-    const data = await safeFormData(request);
-    if (isEmpty(data))
-      return new Response(
-        JSON.stringify(
-          { status: 1, text: 'Request body is missing' },
-          { status: 400, headers },
-        ),
-      );
-    const schema = buildURLSchema(R[params.source]);
-    const { valid: URLValid } = validate(data, schema);
-    if (URLValid === false)
-      return new Response(
-        JSON.stringify(
-          { status: 1, text: 'The "url" parameter is missing or incorrect' },
-          { status: 400, headers },
-        ),
-      );
-    return new Response(JSON.stringify({ status: 0, result: URLValid }), {
-      status: 200,
-      headers,
-    });
-  })
-  .all(
-    '*',
-    () =>
-      new Response(JSON.stringify({ status: 1, text: '404 Not Found' }), {
-        status: 404,
-        headers,
-      }),
-  );
+const checkBody = ({ paths, form, data }) => {
+  if (isEmpty(form) && isEmpty(data)) return BAD_REQUEST;
+  const source = paths[1];
+  const schema = {
+    type: 'object',
+    properties: {
+      url: { pattern: R[source] },
+    },
+    required: ['url'],
+  };
+  const { valid } = validate(form, schema);
+  if (valid === false) return BAD_REQUEST;
+  return 0;
+};
+
+const METHODS = new Proxy(
+  {
+    ALL: () => NOT_FOUND,
+    POST: () => OK,
+    OPTIONS: () => NO_CONTENT,
+  },
+  {
+    get:
+      (target, prop) =>
+      (...args) => {
+        const status = checkPaths(...args);
+        if (status) return status;
+        if (prop === 'POST') {
+          const status = checkBody(...args);
+          if (status) return status;
+        }
+        const fn = target[prop] || target['ALL'];
+        return fn(...args);
+      },
+  },
+);
+
+const handle = async (request) => {
+  const { pathname, searchParams } = new URL(request.url);
+  const query = Object.fromEntries(searchParams);
+  const paths = pathname.substring(1).split('/');
+  const form = await safeFormData(request);
+  const handler = METHODS[request.method];
+  console.info({ query, paths, form, handler });
+  const status = handler({ query, paths, form });
+  const body = BODIES[status];
+  const headers = status === NO_CONTENT ? CORS : HEADERS;
+  return new Response(body, { status, headers });
+};
 
 export default {
-  fetch: router.handle,
+  fetch: handle,
 };
