@@ -1,9 +1,9 @@
 import { CORS, HEADERS } from './constants';
 
-const safeFormData = async (request) => {
+const unsafeFormData = async (request) => {
   try {
-    const formData = await request.formData();
-    return Object.fromEntries(formData);
+    const data = await request.formData();
+    return Object.fromEntries(data);
   } catch {
     return null;
   }
@@ -50,7 +50,7 @@ const toRequest = async (request) => {
   const query = Object.fromEntries(searchParams);
   const chunks = pathname.substring(1).split('/');
   const handler = dirs[[chunks, request.method]];
-  const form = await safeFormData(request);
+  const form = await unsafeFormData(request);
   console.info({ query, dirs, form, handler });
   return handler({ query, dirs, form });
 };
