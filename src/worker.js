@@ -1,4 +1,4 @@
-import { CORS, HEADERS } from './constants';
+import { CORS, CONTENT_TYPE, MIME_TYPES } from './constants';
 
 const unsafeFormData = async (request) => {
   try {
@@ -28,8 +28,8 @@ const getByPath = (data, dataPath, sep) => {
   return result;
 };
 
-const all = () => ['404 Not Found', { status: 404, headers: HEADERS }];
-const post = async () => ['ok', { status: 200, headers: HEADERS }];
+const all = () => ['404 Not Found', { status: 404, headers: CORS }];
+const post = async () => ['ok', { status: 200, headers: CORS }];
 const options = () => [null, { status: 204, headers: CORS }];
 
 const api = {
