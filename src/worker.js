@@ -33,13 +33,17 @@ const api = {
   krakenfiles: { options, post },
 };
 
-const get = (target, prop) => {
-  const handler = getByPath(target, prop.toLowerCase(), ',');
-  if (handler) return handler;
-  return all;
-};
-
-const dirs = new Proxy({ api }, { get });
+const dirs = new Proxy(
+  { api },
+  {
+    get(target, prop) {
+      const path = prop.toLowerCase();
+      const handler = getByPath(target, path, ',');
+      if (handler) return handler;
+      return all;
+    },
+  },
+);
 
 const handle = async (request) => {
   const { pathname, searchParams } = new URL(request.url);
