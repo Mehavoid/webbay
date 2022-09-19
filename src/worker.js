@@ -1,4 +1,5 @@
 import { CORS, CONTENT_TYPE, MIME_TYPES } from './http';
+import { link } from './api.js';
 
 const unsafeFormData = async (request) => {
   try {
@@ -27,16 +28,9 @@ const getByPath = (data, dataPath, sep) => {
 };
 
 const all = () => ['404 Not Found', 404];
-const post = async () => ['ok', 200];
-const options = () => [null, 204];
-
-const api = {
-  webshare: { options, post },
-  krakenfiles: { options, post },
-};
 
 const dirs = new Proxy(
-  { api },
+  { api: { link } },
   {
     get(target, prop) {
       const path = prop.toLowerCase();
@@ -57,12 +51,12 @@ const prepareResponse = (data, status) => {
   return { body, options };
 };
 
-const handle = async (request) => {
+const handle = async (request, env) => {
   const { pathname, searchParams } = new URL(request.url);
   const query = Object.fromEntries(searchParams);
   const chunks = pathname.substring(1).split('/');
   const handler = dirs[[chunks, request.method]];
-  const args = [];
+  const args = [env];
   if (handler.length) args.push(await unsafeFormData(request));
   console.info({ query, chunks, args, handler });
   const [data, status] = await handler(...args);
