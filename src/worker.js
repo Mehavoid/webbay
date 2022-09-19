@@ -9,21 +9,19 @@ const unsafeFormData = async (request) => {
   }
 };
 
-const isNull = (o) => {
-  if (o === null || o === undefined) return true;
-  return false;
-};
+const isExist = (o) => o !== null && typeof o !== 'undefined';
+
+const isNotExist = (o) => !isExist(o);
 
 const getByPath = (data, dataPath, sep) => {
   const path = dataPath.split(sep);
-  let result = data;
-  for (let i = 0; i < path.length; i++) {
-    const key = path[i].toLowerCase();
-    const next = result[key];
-    if (isNull(next)) return next;
-    result = next;
+  let object = data;
+  for (const name of path) {
+    const next = object[name];
+    if (isNotExist(next)) return next;
+    object = next;
   }
-  return result;
+  return object;
 };
 
 const all = () => ['404 Not Found', { status: 404, headers: CORS }];
@@ -36,7 +34,7 @@ const api = {
 };
 
 const get = (target, prop) => {
-  const handler = getByPath(target, prop, ',');
+  const handler = getByPath(target, prop.toLowerCase(), ',');
   if (handler) return handler;
   return all;
 };
