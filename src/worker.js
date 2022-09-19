@@ -24,9 +24,9 @@ const getByPath = (data, dataPath, sep) => {
   return object;
 };
 
-const all = () => ['404 Not Found', { status: 404, headers: CORS }];
-const post = async () => ['ok', { status: 200, headers: CORS }];
-const options = () => [null, { status: 204, headers: CORS }];
+const all = () => ['404 Not Found', 404];
+const post = async () => ['ok', 200];
+const options = () => [null, 204];
 
 const api = {
   webshare: { options, post },
@@ -45,6 +45,16 @@ const dirs = new Proxy(
   },
 );
 
+const prepareResponse = (data, status) => {
+  const success = status >= 200 && status <= 299;
+  const exist = isExist(data);
+  const body = exist ? JSON.stringify({ data, success }) : data;
+  const mime = MIME_TYPES['json'];
+  const headers = exist ? { ...CORS, [CONTENT_TYPE]: mime } : CORS;
+  const options = { status, headers };
+  return { body, options };
+};
+
 const handle = async (request) => {
   const { pathname, searchParams } = new URL(request.url);
   const query = Object.fromEntries(searchParams);
@@ -52,8 +62,9 @@ const handle = async (request) => {
   const handler = dirs[[chunks, request.method]];
   const form = await unsafeFormData(request);
   console.info({ query, chunks, form, handler });
-  const result = await handler({ query, dirs, form });
-  return new Response(...result);
+  const [data, status] = await handler({ query, chunks, form });
+  const { body, options } = prepareResponse(data, status);
+  return new Response(body, options);
 };
 
 export default { fetch: handle };
