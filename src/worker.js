@@ -9,8 +9,6 @@ const unsafeFormData = async (request) => {
   }
 };
 
-const pipe = (f1, f2) => (x) => f1(x).then(f2);
-
 const isNull = (o) => {
   if (o === null || o === undefined) return true;
   return false;
@@ -45,18 +43,15 @@ const get = (target, prop) => {
 
 const dirs = new Proxy({ api }, { get });
 
-const toRequest = async (request) => {
+const handle = async (request) => {
   const { pathname, searchParams } = new URL(request.url);
   const query = Object.fromEntries(searchParams);
   const chunks = pathname.substring(1).split('/');
   const handler = dirs[[chunks, request.method]];
   const form = await unsafeFormData(request);
-  console.info({ query, dirs, form, handler });
-  return handler({ query, dirs, form });
+  console.info({ query, chunks, form, handler });
+  const result = await handler({ query, dirs, form });
+  return new Response(...result);
 };
 
-const toResponse = (result) => new Response(...result);
-
-export default {
-  fetch: pipe(toRequest, toResponse),
-};
+export default { fetch: handle };
