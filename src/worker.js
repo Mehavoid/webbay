@@ -9,54 +9,65 @@ const unsafeFormData = async (request) => {
   }
 };
 
-const pipe = (f1, f2) => (x) => f1(x).then(f2);
+const inRange = (s, min, max) => s >= min && s <= max;
 
-const isNull = (o) => {
-  if (o === null || o === undefined) return true;
-  return false;
-};
+const isExist = (o) => o !== null && typeof o !== 'undefined';
+
+const isNotExist = (o) => !isExist(o);
 
 const getByPath = (data, dataPath, sep) => {
   const path = dataPath.split(sep);
-  let result = data;
-  for (let i = 0; i < path.length; i++) {
-    const key = path[i].toLowerCase();
-    const next = result[key];
-    if (isNull(next)) return next;
-    result = next;
+  let object = data;
+  for (const name of path) {
+    const next = object[name];
+    if (isNotExist(next)) return next;
+    object = next;
   }
-  return result;
+  return object;
 };
 
-const all = () => ['404 Not Found', { status: 404, headers: CORS }];
-const post = async () => ['ok', { status: 200, headers: CORS }];
-const options = () => [null, { status: 204, headers: CORS }];
+const all = () => ['404 Not Found', 404];
+const post = async () => ['ok', 200];
+const options = () => [null, 204];
 
 const api = {
   webshare: { options, post },
   krakenfiles: { options, post },
 };
 
-const get = (target, prop) => {
-  const handler = getByPath(target, prop, ',');
-  if (handler) return handler;
-  return all;
+const dirs = new Proxy(
+  { api },
+  {
+    get(target, prop) {
+      const path = prop.toLowerCase();
+      const handler = getByPath(target, path, ',');
+      if (handler) return handler;
+      return all;
+    },
+  },
+);
+
+const prepareResponse = (data, status) => {
+  const success = inRange(status, 200, 299);
+  const exist = isExist(data);
+  const body = exist ? JSON.stringify({ data, success }) : data;
+  const mime = MIME_TYPES['json'];
+  const headers = exist ? { ...CORS, [CONTENT_TYPE]: mime } : CORS;
+  const options = { status, headers };
+  return { body, options };
 };
 
-const dirs = new Proxy({ api }, { get });
-
-const toRequest = async (request) => {
+const handle = async (request) => {
   const { pathname, searchParams } = new URL(request.url);
   const query = Object.fromEntries(searchParams);
   const chunks = pathname.substring(1).split('/');
   const handler = dirs[[chunks, request.method]];
-  const form = await unsafeFormData(request);
-  console.info({ query, dirs, form, handler });
-  return handler({ query, dirs, form });
+  const args = [];
+  if (handler.length) args.push(await unsafeFormData(request));
+  console.info({ query, chunks, args, handler });
+  const [data, status] = await handler(...args);
+  const { body, options } = prepareResponse(data, status);
+  return new Response(body, options);
 };
 
-const toResponse = (result) => new Response(...result);
-
-export default {
-  fetch: pipe(toRequest, toResponse),
-};
+export default { fetch: handle };
