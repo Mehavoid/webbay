@@ -9,6 +9,8 @@ const unsafeFormData = async (request) => {
   }
 };
 
+const inRange = (s, min, max) => s >= min && s <= max;
+
 const isExist = (o) => o !== null && typeof o !== 'undefined';
 
 const isNotExist = (o) => !isExist(o);
@@ -46,7 +48,7 @@ const dirs = new Proxy(
 );
 
 const prepareResponse = (data, status) => {
-  const success = status >= 200 && status <= 299;
+  const success = inRange(status, 200, 299);
   const exist = isExist(data);
   const body = exist ? JSON.stringify({ data, success }) : data;
   const mime = MIME_TYPES['json'];
