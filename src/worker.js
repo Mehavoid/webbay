@@ -62,9 +62,10 @@ const handle = async (request) => {
   const query = Object.fromEntries(searchParams);
   const chunks = pathname.substring(1).split('/');
   const handler = dirs[[chunks, request.method]];
-  const form = await unsafeFormData(request);
-  console.info({ query, chunks, form, handler });
-  const [data, status] = await handler({ query, chunks, form });
+  const args = [];
+  if (handler.length) args.push(await unsafeFormData(request));
+  console.info({ query, chunks, args, handler });
+  const [data, status] = await handler(...args);
   const { body, options } = prepareResponse(data, status);
   return new Response(body, options);
 };
