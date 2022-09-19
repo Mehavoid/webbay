@@ -1,4 +1,4 @@
-import { CORS, CONTENT_TYPE, MIME_TYPES } from './constants';
+import { CORS, CONTENT_TYPE, MIME_TYPES } from './http';
 
 const unsafeFormData = async (request) => {
   try {
