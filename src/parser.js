@@ -1,10 +1,17 @@
 class ElementHandler {
   constructor() {
+    this.counter = 0;
     this.attributes = null;
+    this.textContent = new Map();
   }
 
   element({ attributes }) {
     this.attributes = Object.fromEntries(attributes);
+  }
+
+  text({ text, lastInTextNode }) {
+    if (lastInTextNode) this.counter++;
+    else this.textContent.set(this.counter, text);
   }
 }
 
@@ -53,15 +60,15 @@ const krakenfiles =
 const webshare =
   ({ id }) =>
   async ({ wst }) => {
-    const response = await fetch(
-      'https://beta.webshare.cz/site/fast-download',
-      {
-        method: 'POST',
-        body: createBody({ id, wst }),
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-      },
-    );
-    return response.text();
+    const response = await fetch('https://webshare.cz/api/file_link/', {
+      method: 'POST',
+      body: createBody({ ident: id, wst }),
+    });
+    const parser = new Parser(response);
+    const { textContent } = await parser.querySelector('response');
+    const link = textContent.get(1);
+    if (link) return link;
+    return '';
   };
 
 const parsers = new Proxy(
