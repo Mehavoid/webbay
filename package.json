@@ -12,11 +12,11 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
-    "eslint": "^8.23.1",
+    "eslint": "^8.26.0",
     "eslint-config-metarhia": "^8.1.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
     "prettier": "^2.7.1",
-    "wrangler": "^2.1.0"
+    "wrangler": "^2.1.13"
   }
 }
